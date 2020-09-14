@@ -9,6 +9,7 @@ const uint16_t PC_START = 0x3000;
 uint16_t mem[UINT16_MAX];   // Array addressable with a 16-bit uint with 16-bit width.
 uint16_t reg[R_COUNT];      // Array containing all 16-bit registers.
 
+// TODO: Write tests for utility functions.
 
 uint16_t ltob(uint16_t x) {
     // Convert to big endian using network functions.
