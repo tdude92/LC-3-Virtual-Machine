@@ -1,11 +1,3 @@
-#if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
-    const bool littleEndian = false;
-#elif defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN
-    const bool littleEndian = true;
-#else
-    //#error "__BYTE_ORDER not defined. Try using g++ to compile."
-#endif
-
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
@@ -17,6 +9,11 @@ const uint16_t PC_START = 0x3000;
 uint16_t mem[UINT16_MAX];   // Array addressable with a 16-bit uint with 16-bit width.
 uint16_t reg[R_COUNT];      // Array containing all 16-bit registers.
 
+
+uint16_t ltob(uint16_t x) {
+    // Convert to big endian using network functions.
+    return htons(x);
+}
 
 bool readBin(const char* fileName) {
     // Read lc3 binary.
@@ -46,11 +43,6 @@ bool readBin(const char* fileName) {
     return true;
 }
 
-uint16_t ltob(uint16_t x) {
-    // Convert to big endian using network functions.
-    return htons(x);
-}
-
 void lc3_memset(uint16_t addr, uint16_t val) {
     mem[addr] = val;
 }
@@ -64,7 +56,7 @@ uint16_t lc3_memread(uint16_t addr) {
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         // Print usage.
-        std::cout << "lc3 [lc3_asm_file.obj]" << std::endl;
+        std::cout << "lc3 [lc3_bin.obj]" << std::endl;
         exit(1);
     }
 
