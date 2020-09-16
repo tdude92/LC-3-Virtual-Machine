@@ -57,16 +57,18 @@ uint16_t lc3_memread(uint16_t addr) {
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         // Print usage.
-        std::cout << "lc3 [lc3_bin.obj]" << std::endl;
+        std::cout << "lc3 [lc3_bin.obj] ..." << std::endl;
         exit(1);
     }
 
-    // TODO: Make it possible to load and run multiple lc3 binaries.
-    // Read binary into memory.
-    if (!readBin(argv[1])) {
-        std::cerr << "Error loading " << argv[1] << std::endl;
-        exit(1);
+    // Read binaries into memory.
+    for (int i = 1; i < argc; ++i) {
+        if (!readBin(argv[1])) {
+            std::cerr << "Error loading " << argv[1] << std::endl;
+            exit(1);
+        }
     }
+     
 
     reg[R_PC] = PC_START; // Set PC register to starting address.
 
@@ -78,6 +80,26 @@ int main(int argc, char *argv[]) {
 
         switch(op) {
             // TODO: Implement instructions.
+            case OP_TRAP:
+                switch (op & 0xFF) {
+                    // TODO: Implement trap routines.
+                    case TRAP_GETC:
+                        break;
+                    case TRAP_OUT:
+                        break;
+                    case TRAP_PUTS:
+                        break;
+                    case TRAP_IN:
+                        break;
+                    case TRAP_PUTSP:
+                        break;
+                    case TRAP_HALT:
+                        break;
+                }
+                break;
+            default:
+                // TODO: Implement bad opcode handling.
+                break;
         }
     }
 }
