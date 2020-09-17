@@ -179,10 +179,33 @@ int main(int argc, char *argv[]) {
                 }
             } break;
             case OP_AND: {
-
+                /*
+                  Perform a bitwise-AND operation on
+                  If bit 5 is 0: r1 and r2
+                  If bit 5 is 1: r1 and number in bits 0 to 4.
+                  Store result in dr.
+                */
+                uint16_t dr = (instr >> 9) & 0x7;
+                uint16_t r1 = (instr >> 6) & 0x7;
+                if (instr >> 5) {
+                    uint16_t r2 = instr & 0x7;
+                    reg[dr] = reg[r1] & reg[r2];
+                } else {
+                    reg[dr] = reg[r1] & signExtend(instr & 0x1F, 5);
+                }
+                updateFlags(dr);
             } break;
             case OP_LDR: {
+                /*
+                  Retrieve value stored in memory and store into dr.
+                  The address is the value in a register r1 + offset6
+                */
+                uint16_t dr = (instr >> 9) & 0x7;
+                uint16_t r1 = (instr >> 6) & 0x7;
+                uint16_t offset6 = signExtend(instr & 0x3F, 6);
 
+                reg[dr] = lc3_memread(reg[r1] + offset6);
+                updateFlags(dr);
             } break;
             case OP_STR: {
 
