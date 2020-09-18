@@ -23,7 +23,7 @@ uint16_t lc3_memread(uint16_t addr) {
     return mem[addr];
 }
 
-void lc3_memwrite(uint16_t addr, uint16_t x) {
+void lc3_memset(uint16_t addr, uint16_t x) {
     mem[addr] = x;
 }
 
@@ -109,7 +109,6 @@ int main(int argc, char *argv[]) {
         instr = lc3_memread(reg[R_PC]++); // Read instruction from loaded program.
         op = instr >> 12;
         switch(op) {
-            // TODO: Implement instructions.
             case OP_BR: {
                 /*
                   Test NEG, ZRO, POS conditions.
@@ -161,7 +160,7 @@ int main(int argc, char *argv[]) {
                 uint16_t r1 = (instr >> 9) & 0x7;
                 uint16_t PCoffset9 = signExtend(instr & 0x1FF, 9);
                 
-                lc3_memwrite(reg[R_PC] + PCoffset9, reg[r1]);
+                lc3_memset(reg[R_PC] + PCoffset9, reg[r1]);
             } break;
             case OP_JSR: {
                 /*
@@ -208,13 +207,32 @@ int main(int argc, char *argv[]) {
                 updateFlags(dr);
             } break;
             case OP_STR: {
+                /*
+                  The value in r1 is stored into memory at
+                  the address with the value (r2 + offset6)
+                */
+                uint16_t r1 = (instr >> 9) & 0x7;
+                uint16_t r2 = (instr >> 6) & 0x7;
+                uint16_t offset6 = signExtend(instr & 0x3F, 6);
 
+                lc3_memset(reg[r2] + offset6, reg[r1]);
             } break;
             case OP_RTI: {
-
+                /*
+                  Unused. Throws error.
+                */
+                std::cerr << "OP_RTI: operation not implemented." << std::endl;
+                exit(1);
             } break;
             case OP_NOT: {
-
+                /*
+                  Store the bitwise complement of the value in r1 into dr.
+                */
+                uint16_t dr = (instr >> 9) & 0x7;
+                uint16_t r1 = (instr >> 6) & 0x7;
+                
+                reg[dr] = ~reg[r1];
+                updateFlags(dr);
             } break;
             case OP_LDI: {
                 /*
@@ -229,16 +247,39 @@ int main(int argc, char *argv[]) {
                 updateFlags(dr);
             } break;
             case OP_STI: {
+                /*
+                  The value in r1 is stored at the memory location
+                  pointed to by the memory location R_PC + PCoffset9.
+                */
+               uint16_t r1 = (instr >> 9) & 0x7;
+               uint16_t PCoffset9 = signExtend(instr & 0x1FF, 9);
 
+               lc3_memset(lc3_memread(reg[R_PC] + PCoffset9), reg[r1]);
             } break;
             case OP_JMP: {
+                /*
+                  Set R_PC to the value specified in r1.
+                */
+                uint16_t r1 = (instr >> 6) & 0x7;
 
+                reg[R_PC] = reg[r1];
             } break;
             case OP_RES: {
-
+                /*
+                  Unused. Throws error.
+                */
+                std::cerr << "OP_RES: operation not implemented." << std::endl;
+                exit(1);
             } break;
             case OP_LEA: {
+                /*
+                    Load the address given by R_PC + PCoffset9 into dr.
+                */
+                uint16_t dr = (instr >> 9) & 0x7;
+                uint16_t PCoffset9 = signExtend(instr & 0x1FF, 9);
 
+                reg[dr] = reg[R_PC] + PCoffset9;
+                updateFlags(dr);
             } break;
             case OP_TRAP: {
                 switch (op & 0xFF) {
