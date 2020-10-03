@@ -1,5 +1,4 @@
-#define LC3_DEBUG_BUILD
-
+//#define LC3_DEBUG_BUILD
 #ifdef LC3_DEBUG_BUILD
     #define DEBUG(x) do{x}while(0)
 #else
@@ -7,11 +6,16 @@
 #endif
 
 #include <iostream>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
+#include <csignal>
 #include <netinet/in.h>
+#include "input_buffering.h"
 #include "enums.hpp"
+
+#include <fstream>
 
 const uint16_t PC_START = 0x3000;
 uint16_t mem[UINT16_MAX];   // Array addressable with a 16-bit uint with 16-bit width.
@@ -20,6 +24,14 @@ uint16_t reg[R_COUNT];      // Array containing all 16-bit registers.
 
 // Utility
 uint16_t lc3_memread(uint16_t addr) {
+    if (addr == MR_KBSR) {
+        if (check_key()) {
+            mem[MR_KBSR] = 1 << 15;
+            mem[MR_KBDR] = getchar();
+        } else {
+            mem[MR_KBSR] = 0;
+        }
+    }
     return mem[addr];
 }
 
@@ -92,6 +104,10 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    // Set console to unbuffered input.
+    signal(SIGINT, handle_interrupt);
+    disable_input_buffering();
+
     // Read binaries into memory.
     for (int i = 1; i < argc; ++i) {
         if (!readBin(argv[1])) {
@@ -103,10 +119,33 @@ int main(int argc, char *argv[]) {
 
     reg[R_PC] = PC_START; // Set PC register to starting address.
 
+    // Set up file ostream to write instructions and register values.
+    std::fstream log;
+    DEBUG(
+        log.open("execution.log", std::ios::out | std::ios::trunc);
+        std::cout << "Writing instruction execution and register states to log file." << std::endl;
+    );
+
     uint16_t instr, op;
     bool running = true;
     while (running) {
         instr = lc3_memread(reg[R_PC]++); // Read instruction from loaded program.
+
+        DEBUG(
+            // Write register values.
+            log     << "Instr: " << std::hex << instr << "\n";
+            log     << "R0:" << std::hex << reg[R_R0] << " "
+                    << "R1:" << std::hex << reg[R_R1] << " "
+                    << "R2:" << std::hex << reg[R_R2] << " "
+                    << "R3:" << std::hex << reg[R_R3] << " "
+                    << "R4:" << std::hex << reg[R_R4] << " "
+                    << "R5:" << std::hex << reg[R_R5] << " "
+                    << "R6:" << std::hex << reg[R_R6] << " "
+                    << "R7:" << std::hex << reg[R_R7] << " "
+                    << "PC:" << std::hex << reg[R_PC] - 1 << " "
+                    << "COND: " << reg[R_COND] << "\n" << std::endl;
+        );
+
         op = instr >> 12;
         switch(op) {
             case OP_BR: {
@@ -117,7 +156,7 @@ int main(int argc, char *argv[]) {
                   bit 9,  p:  Test for POS
                   If any conditions are true, goto R_PC + PCoffset9.
                 */
-                bool nzp = (instr >> 9) & 0x7;
+                uint16_t nzp = (instr >> 9) & 0x7;
                 if ((nzp & reg[R_COND]) > 0) {
                     uint16_t PCoffset9 = signExtend(instr & 0x1FF, 9);
                     reg[R_PC] += PCoffset9;
@@ -133,7 +172,7 @@ int main(int argc, char *argv[]) {
 
                 if ((instr >> 5) & 0x1) {
                     // Immediate mode, 5th bit is 1
-                    reg[dr] = reg[r1] + signExtend(instr & 0xF, 5);
+                    reg[dr] = reg[r1] + signExtend(instr & 0x1F, 5);
                 } else {
                     // Register mode
                     uint16_t r2 = instr & 0x7;
@@ -282,20 +321,65 @@ int main(int argc, char *argv[]) {
                 updateFlags(dr);
             } break;
             case OP_TRAP: {
-                switch (op & 0xFF) {
-                    // TODO: Implement trap routines.
-                    case TRAP_GETC:
-                        break;
-                    case TRAP_OUT:
-                        break;
-                    case TRAP_PUTS:
-                        break;
-                    case TRAP_IN:
-                        break;
-                    case TRAP_PUTSP:
-                        break;
-                    case TRAP_HALT:
-                        break;
+                switch (instr & 0xFF) {
+                    case TRAP_GETC: {
+                        /*
+                        Read an ASCII char
+                        */
+                        reg[R_R0] = (uint16_t)getchar();
+                    } break;
+                    case TRAP_OUT: {
+                        /*
+                          Write a character in R_R0[7:0]
+                        */
+                        std::cout << (char)reg[R_R0];
+                        std::flush(std::cout);
+                    } break;
+                    case TRAP_PUTS: {
+                        /*
+                          Write a sequence of characters in adjacent memory locations
+                          to the output. Writing stops at a location with value 0x0000.
+                        */
+                        uint16_t* c = mem + reg[R_R0];
+                        while (*c) {
+                            std::cout << (char)*c;
+                            ++c;
+                        }
+                        std::flush(std::cout);
+                    } break;
+                    case TRAP_IN: {
+                        /*
+                          Prompt for a character input. Input is echoed and stored into R_R0.
+                        */
+                        std::cout << "Enter a character: " << std::flush;
+                        char c = getchar();
+                        std::cout << c << std::flush;
+                        reg[R_R0] = (uint16_t)c; 
+                    } break;
+                    case TRAP_PUTSP: {
+                        /*
+                          Same as PUTS, but two chars are stored in a memory location.
+                        */
+                        uint16_t* c = mem + reg[R_R0];
+                        while (*c) {
+                            char c1 = (*c) & 0xFF;
+                            char c2 = (*c) >> 8;
+
+                            std::cout << c1;
+                            if (c2)
+                                std::cout << c2;
+
+                            ++c;
+                        }
+                        std::flush(std::cout);
+                    } break;
+                    case TRAP_HALT: {
+                        /*
+                          Halts the program.
+                        */
+                        std::cout << "HALT" << std::endl;
+                        running = false;
+                    } break;
                 }
             } break;
             default:
@@ -303,4 +387,7 @@ int main(int argc, char *argv[]) {
                 break;
         }
     }
+
+    restore_input_buffering();
+    return 0;
 }

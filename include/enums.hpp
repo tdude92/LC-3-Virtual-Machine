@@ -36,6 +36,12 @@ enum Operation {
     OP_TRAP,   // Execute Trap
 };
 
+// Memory mapped registers
+enum MM_Reg {
+    MR_KBSR = 0xFE00, // Keyboard status
+    MR_KBDR = 0xFE02  // Keyboard data
+};
+
 // Trap codes
 enum TrapCode {
     TRAP_GETC   = 0x20, // Get character from keyboard, don't echo onto terminal.
