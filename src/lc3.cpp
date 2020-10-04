@@ -1,4 +1,5 @@
-//#define LC3_DEBUG_BUILD
+//#define LC3_DEBUG_BUILD       // Defining this will write the register states
+                                // before each instruction execution to a log file.
 #ifdef LC3_DEBUG_BUILD
     #define DEBUG(x) do{x}while(0)
 #else
@@ -104,10 +105,6 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    // Set console to unbuffered input.
-    signal(SIGINT, handle_interrupt);
-    disable_input_buffering();
-
     // Read binaries into memory.
     for (int i = 1; i < argc; ++i) {
         if (!readBin(argv[1])) {
@@ -115,7 +112,10 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
-     
+    
+    // Set console to unbuffered input.
+    signal(SIGINT, handle_interrupt);
+    disable_input_buffering();
 
     reg[R_PC] = PC_START; // Set PC register to starting address.
 
@@ -225,11 +225,11 @@ int main(int argc, char *argv[]) {
                 */
                 uint16_t dr = (instr >> 9) & 0x7;
                 uint16_t r1 = (instr >> 6) & 0x7;
-                if (instr >> 5) {
+                if ((instr >> 5) & 0x1) {
+                    reg[dr] = reg[r1] & signExtend(instr & 0x1F, 5);
+                } else {
                     uint16_t r2 = instr & 0x7;
                     reg[dr] = reg[r1] & reg[r2];
-                } else {
-                    reg[dr] = reg[r1] & signExtend(instr & 0x1F, 5);
                 }
                 updateFlags(dr);
             } break;
