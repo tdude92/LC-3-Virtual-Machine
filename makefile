@@ -8,4 +8,4 @@ build/lc3.o: src/lc3.cpp include/enums.hpp include/input_buffering.h
 	g++ -Wall -c src/lc3.cpp -o build/lc3.o -Iinclude
 
 clean:
-	rm -rf build/* bin/*
+	rm -rf build/* bin/* test/*.obj

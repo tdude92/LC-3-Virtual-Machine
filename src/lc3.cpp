@@ -7,7 +7,6 @@
 #endif
 
 #include <iostream>
-#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
